@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, HttpUrl
 
 from .demo_data import PRODUCTS, PRICE_HISTORY
@@ -6,7 +7,9 @@ from .models import MatchCandidate
 from .matching import match_confidence, match_decision
 from .connectors.cuelinks import request as cuelinks_request
 
-app = FastAPI(title="Threadly API", version="0.3.0", description="Fashion comparison API with optional server-side Cuelinks affiliate integration. Bundled product catalog is synthetic.")
+app = FastAPI(title="Threadly API", version="0.4.0", description="Fashion comparison API with server-side Cuelinks affiliate integration. Bundled product catalog is synthetic.")
+
+app.add_middleware(CORSMiddleware, allow_origins=["https://swagatbaghel-myntra.github.io"], allow_methods=["GET","POST","OPTIONS"], allow_headers=["Content-Type"])
 
 class ConvertLinkRequest(BaseModel):
     url: HttpUrl
