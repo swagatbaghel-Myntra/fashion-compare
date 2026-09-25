@@ -1,13 +1,19 @@
 from fastapi import FastAPI, HTTPException, Query
+from pydantic import BaseModel, HttpUrl
+
 from .demo_data import PRODUCTS, PRICE_HISTORY
 from .models import MatchCandidate
 from .matching import match_confidence, match_decision
+from .connectors.cuelinks import request as cuelinks_request
 
-app = FastAPI(title="Threadly API", version="0.2.0", description="Fashion comparison API. Current bundled catalog is synthetic.")
+app = FastAPI(title="Threadly API", version="0.3.0", description="Fashion comparison API with optional server-side Cuelinks affiliate integration. Bundled product catalog is synthetic.")
+
+class ConvertLinkRequest(BaseModel):
+    url: HttpUrl
 
 @app.get("/health")
 def health():
-    return {"status":"ok","data_mode":"synthetic_demo"}
+    return {"status":"ok","data_mode":"synthetic_demo","cuelinks":"server_configured_if_env_present"}
 
 @app.get("/search")
 def search(q: str = "", article_type: str | None = None, max_price: int | None = Query(None, ge=0)):
@@ -64,3 +70,23 @@ def assortment():
     for p in PRODUCTS:
         types[p.article_type]=types.get(p.article_type,0)+1
     return {"data_mode":"synthetic_demo","canonical_products":len(PRODUCTS),"article_type_depth":types}
+
+@app.get("/affiliate/health")
+async def affiliate_health():
+    return await cuelinks_request("GET", "/ping")
+
+@app.get("/affiliate/campaigns")
+async def affiliate_campaigns(q: str = Query("fashion")):
+    return await cuelinks_request("GET", "/campaigns", params={"q": q})
+
+@app.get("/affiliate/offers")
+async def affiliate_offers(q: str | None = None):
+    return await cuelinks_request("GET", "/offers", params={"q": q} if q else None)
+
+@app.post("/affiliate/convert")
+async def affiliate_convert(body: ConvertLinkRequest):
+    return await cuelinks_request("POST", "/links/convert", json={"url": str(body.url)})
+
+@app.get("/affiliate/performance")
+async def affiliate_performance():
+    return await cuelinks_request("GET", "/reports/performance")
